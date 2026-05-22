@@ -2,7 +2,7 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm } from "react-hook-form";
 import StepIndicator from "../../components/StepIndicator";
-import { enrollmentFormDraftSchema } from "./schemas";
+import { courseStepSchema, enrollmentFormDraftSchema } from "./schemas";
 import ApplicantStep from "./steps/ApplicantStep";
 import CourseStep from "./steps/CourseStep";
 import type {
@@ -36,7 +36,9 @@ function EnrollmentPage() {
   });
   const {
     formState: { errors },
+    clearErrors,
     getValues,
+    setError,
     setValue,
     trigger,
     watch
@@ -63,15 +65,33 @@ function EnrollmentPage() {
     setIsApplicantStepReady(false);
   };
 
-  const handleCourseStepNext = async () => {
-    const isValid = await trigger(["courseId", "type"], {
-      shouldFocus: true
+  const handleCourseStepNext = () => {
+    const result = courseStepSchema.safeParse({
+      courseId: getValues("courseId"),
+      type: getValues("type")
     });
 
-    if (!isValid) {
+    if (!result.success) {
+      const fieldErrors = result.error.flatten().fieldErrors;
+
+      if (fieldErrors.courseId?.[0]) {
+        setError("courseId", {
+          type: "manual",
+          message: fieldErrors.courseId[0]
+        });
+      }
+
+      if (fieldErrors.type?.[0]) {
+        setError("type", {
+          type: "manual",
+          message: fieldErrors.type[0]
+        });
+      }
+
       return;
     }
 
+    clearErrors(["courseId", "type"]);
     setCurrentStep("applicant");
     setIsApplicantStepReady(false);
   };
