@@ -34,6 +34,25 @@ export interface Participant {
   email: string;
 }
 
+export type EnrollmentType = "personal" | "group";
+
+export type EnrollmentStep = "course" | "applicant" | "review" | "complete";
+
+export interface GroupEnrollmentDraft {
+  organizationName: string;
+  headCount: number;
+  participants: Participant[];
+  contactPerson: string;
+}
+
+export interface EnrollmentFormDraft {
+  courseId: string;
+  type: EnrollmentType;
+  applicant: Applicant;
+  group?: GroupEnrollmentDraft;
+  agreedToTerms: boolean;
+}
+
 export interface PersonalEnrollmentRequest {
   courseId: string;
   type: "personal";
