@@ -24,6 +24,7 @@ const initialDraft: EnrollmentFormDraft = {
 function EnrollmentPage() {
   const [currentStep] = useState<EnrollmentStep>("course");
   const [draft, setDraft] = useState<EnrollmentFormDraft>(initialDraft);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [courseStepErrors, setCourseStepErrors] = useState<{
     courseId?: string;
     type?: string;
@@ -31,6 +32,7 @@ function EnrollmentPage() {
   const [isCourseStepReady, setIsCourseStepReady] = useState(false);
 
   const handleCourseChange = (course: Course) => {
+    setSelectedCourse(course);
     setDraft((currentDraft) => ({
       ...currentDraft,
       courseId: course.id
@@ -80,6 +82,7 @@ function EnrollmentPage() {
       <div className="app-container">
         <StepIndicator currentStep={currentStep} />
         <CourseStep
+          selectedCourse={selectedCourse}
           selectedCourseId={draft.courseId}
           selectedType={draft.type}
           errors={courseStepErrors}

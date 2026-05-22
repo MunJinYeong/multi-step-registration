@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getCourses } from "../../../api/mockApi";
 import EmptyState from "../../../components/EmptyState";
 import LoadingState from "../../../components/LoadingState";
@@ -14,6 +14,7 @@ import {
 } from "../utils";
 
 interface CourseStepProps {
+  selectedCourse: Course | null;
   selectedCourseId: string;
   selectedType: EnrollmentType | "";
   errors: {
@@ -52,6 +53,7 @@ function formatDateRange(startDate: string, endDate: string) {
 }
 
 function CourseStep({
+  selectedCourse,
   selectedCourseId,
   selectedType,
   errors,
@@ -98,11 +100,6 @@ function CourseStep({
       isActive = false;
     };
   }, [selectedCategory]);
-
-  const selectedCourse = useMemo(
-    () => courses.find(({ id }) => id === selectedCourseId),
-    [courses, selectedCourseId]
-  );
 
   return (
     <section className="course-step" aria-labelledby="course-step-title">
