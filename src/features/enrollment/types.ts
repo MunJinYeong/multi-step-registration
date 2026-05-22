@@ -47,7 +47,7 @@ export interface GroupEnrollmentDraft {
 
 export interface EnrollmentFormDraft {
   courseId: string;
-  type: EnrollmentType;
+  type: EnrollmentType | "";
   applicant: Applicant;
   group?: GroupEnrollmentDraft;
   agreedToTerms: boolean;

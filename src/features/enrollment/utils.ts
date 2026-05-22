@@ -92,6 +92,10 @@ export function normalizeEnrollmentPayload(
     };
   }
 
+  if (draft.type !== "group") {
+    throw new Error("신청 유형을 선택해야 합니다.");
+  }
+
   const group = draft.group ?? createDefaultGroupDraft();
 
   return {

@@ -5,7 +5,9 @@ const koreanPhoneRegex =
 
 const requiredText = (message: string) => z.string().trim().min(1, message);
 
-export const enrollmentTypeSchema = z.enum(["personal", "group"]);
+export const enrollmentTypeSchema = z.enum(["personal", "group"], {
+  error: "신청 유형을 선택해 주세요."
+});
 
 export const courseStepSchema = z.object({
   courseId: requiredText("강의를 선택해 주세요."),
