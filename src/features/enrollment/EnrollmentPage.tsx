@@ -11,6 +11,11 @@ import type {
   EnrollmentStep,
   EnrollmentType
 } from "./types";
+import {
+  createDefaultGroupDraft,
+  getRemainingCapacity,
+  hasGroupDraftInput
+} from "./utils";
 
 const initialDraft: EnrollmentFormDraft = {
   courseId: "",
@@ -57,6 +62,38 @@ function EnrollmentPage() {
   };
 
   const handleTypeChange = (type: EnrollmentType) => {
+    const currentType = getValues("type");
+
+    if (currentType === type) {
+      return;
+    }
+
+    if (type === "personal") {
+      const groupDraft = getValues("group");
+
+      if (
+        hasGroupDraftInput(groupDraft) &&
+        !window.confirm("개인 신청으로 변경하면 입력한 단체 정보가 삭제됩니다.")
+      ) {
+        return;
+      }
+
+      setValue("group", undefined, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: false
+      });
+      clearErrors("group");
+    }
+
+    if (type === "group" && !getValues("group")) {
+      setValue("group", createDefaultGroupDraft(), {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: false
+      });
+    }
+
     setValue("type", type, {
       shouldDirty: true,
       shouldTouch: true,
@@ -102,21 +139,45 @@ function EnrollmentPage() {
   };
 
   const handleApplicantStepNext = async () => {
-    const isValid = await trigger(
-      [
-        "applicant.name",
-        "applicant.email",
-        "applicant.phone",
-        "applicant.motivation"
-      ],
-      { shouldFocus: true }
-    );
+    const fieldsToValidate =
+      getValues("type") === "group"
+        ? ([
+            "applicant.name",
+            "applicant.email",
+            "applicant.phone",
+            "applicant.motivation",
+            "group"
+          ] as const)
+        : ([
+            "applicant.name",
+            "applicant.email",
+            "applicant.phone",
+            "applicant.motivation"
+          ] as const);
+    const isValid = await trigger(fieldsToValidate, { shouldFocus: true });
 
     if (!isValid) {
       setIsApplicantStepReady(false);
       return;
     }
 
+    const group = getValues("group");
+
+    if (
+      selectedCourse &&
+      getValues("type") === "group" &&
+      group &&
+      group.headCount > getRemainingCapacity(selectedCourse)
+    ) {
+      setError("group.headCount", {
+        type: "manual",
+        message: "신청 인원수가 선택한 강의의 잔여 정원을 초과합니다."
+      });
+      setIsApplicantStepReady(false);
+      return;
+    }
+
+    clearErrors("group.headCount");
     setIsApplicantStepReady(true);
   };
 

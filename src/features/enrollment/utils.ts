@@ -72,6 +72,14 @@ export function hasGroupDraftInput(group?: GroupEnrollmentDraft) {
   );
 }
 
+export function hasParticipantInput(participants: Participant[]) {
+  return participants.some(
+    (participant) =>
+      participant.name.trim().length > 0 ||
+      participant.email.trim().length > 0
+  );
+}
+
 export function normalizeEnrollmentPayload(
   draft: EnrollmentFormDraft
 ): EnrollmentRequest {

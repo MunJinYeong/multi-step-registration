@@ -365,6 +365,28 @@ button:disabled {
   border-color: #d92d20;
 }
 
+.count-stepper {
+  display: grid;
+  grid-template-columns: 44px minmax(72px, 1fr) 44px;
+  gap: 8px;
+}
+
+.count-stepper button {
+  min-height: 46px;
+  color: #1f2937;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.count-stepper button:hover:not(:disabled),
+.count-stepper button:focus-visible {
+  border-color: #2f6f73;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(47, 111, 115, 0.12);
+}
+
 .field-hint {
   margin: 0;
   color: #697586;
@@ -378,6 +400,52 @@ button:disabled {
   border: 1px solid #a5f3fc;
   border-radius: 8px;
   font-weight: 700;
+}
+
+.group-section {
+  display: grid;
+  gap: 22px;
+  padding-top: 22px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.section-subheading h2,
+.participants-section h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.2rem;
+}
+
+.section-subheading p {
+  margin: 8px 0 0;
+  color: #697586;
+  line-height: 1.6;
+}
+
+.participants-section {
+  display: grid;
+  gap: 12px;
+}
+
+.participants-list {
+  display: grid;
+  gap: 12px;
+}
+
+.participant-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.participant-card__title {
+  grid-column: 1 / -1;
+  color: #2f6f73;
+  font-weight: 800;
 }
 
 .step-actions {
@@ -518,5 +586,9 @@ button:disabled {
   .summary-list div {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .participant-card {
+    grid-template-columns: 1fr;
   }
 }
