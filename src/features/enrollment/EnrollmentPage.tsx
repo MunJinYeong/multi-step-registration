@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FormProvider, useForm } from "react-hook-form";
 import StepIndicator from "../../components/StepIndicator";
-import { courseStepSchema } from "./schemas";
+import { enrollmentFormDraftSchema } from "./schemas";
+import ApplicantStep from "./steps/ApplicantStep";
 import CourseStep from "./steps/CourseStep";
 import type {
   Course,
@@ -22,81 +25,115 @@ const initialDraft: EnrollmentFormDraft = {
 };
 
 function EnrollmentPage() {
-  const [currentStep] = useState<EnrollmentStep>("course");
-  const [draft, setDraft] = useState<EnrollmentFormDraft>(initialDraft);
+  const [currentStep, setCurrentStep] = useState<EnrollmentStep>("course");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [courseStepErrors, setCourseStepErrors] = useState<{
-    courseId?: string;
-    type?: string;
-  }>({});
-  const [isCourseStepReady, setIsCourseStepReady] = useState(false);
+  const [isApplicantStepReady, setIsApplicantStepReady] = useState(false);
+  const methods = useForm<EnrollmentFormDraft>({
+    defaultValues: initialDraft,
+    mode: "onBlur",
+    reValidateMode: "onChange",
+    resolver: zodResolver(enrollmentFormDraftSchema)
+  });
+  const {
+    formState: { errors },
+    getValues,
+    setValue,
+    trigger,
+    watch
+  } = methods;
+  const selectedCourseId = watch("courseId");
+  const selectedType = watch("type");
 
   const handleCourseChange = (course: Course) => {
     setSelectedCourse(course);
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      courseId: course.id
-    }));
-    setCourseStepErrors((currentErrors) => ({
-      ...currentErrors,
-      courseId: undefined
-    }));
-    setIsCourseStepReady(false);
+    setValue("courseId", course.id, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    });
+    setIsApplicantStepReady(false);
   };
 
   const handleTypeChange = (type: EnrollmentType) => {
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      type
-    }));
-    setCourseStepErrors((currentErrors) => ({
-      ...currentErrors,
-      type: undefined
-    }));
-    setIsCourseStepReady(false);
+    setValue("type", type, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    });
+    setIsApplicantStepReady(false);
   };
 
-  const handleCourseStepNext = () => {
-    const result = courseStepSchema.safeParse({
-      courseId: draft.courseId,
-      type: draft.type
+  const handleCourseStepNext = async () => {
+    const isValid = await trigger(["courseId", "type"], {
+      shouldFocus: true
     });
 
-    if (!result.success) {
-      const formattedErrors = result.error.flatten().fieldErrors;
-
-      setCourseStepErrors({
-        courseId: formattedErrors.courseId?.[0],
-        type: formattedErrors.type?.[0]
-      });
-      setIsCourseStepReady(false);
+    if (!isValid) {
       return;
     }
 
-    setCourseStepErrors({});
-    setIsCourseStepReady(true);
+    setCurrentStep("applicant");
+    setIsApplicantStepReady(false);
+  };
+
+  const handleApplicantStepBack = () => {
+    setCurrentStep("course");
+    setIsApplicantStepReady(false);
+  };
+
+  const handleApplicantStepNext = async () => {
+    const isValid = await trigger(
+      [
+        "applicant.name",
+        "applicant.email",
+        "applicant.phone",
+        "applicant.motivation"
+      ],
+      { shouldFocus: true }
+    );
+
+    if (!isValid) {
+      setIsApplicantStepReady(false);
+      return;
+    }
+
+    setIsApplicantStepReady(true);
   };
 
   return (
     <main className="app-shell">
-      <div className="app-container">
-        <StepIndicator currentStep={currentStep} />
-        <CourseStep
-          selectedCourse={selectedCourse}
-          selectedCourseId={draft.courseId}
-          selectedType={draft.type}
-          errors={courseStepErrors}
-          onCourseChange={handleCourseChange}
-          onTypeChange={handleTypeChange}
-          onNext={handleCourseStepNext}
-        />
-        {isCourseStepReady ? (
-          <div className="next-step-notice" role="status">
-            강의 선택이 완료되었습니다. 다음 구현 단계에서 수강생 정보 입력
-            화면으로 연결됩니다.
-          </div>
-        ) : null}
-      </div>
+      <FormProvider {...methods}>
+        <div className="app-container">
+          <StepIndicator currentStep={currentStep} />
+          {currentStep === "course" ? (
+            <CourseStep
+              selectedCourse={selectedCourse}
+              selectedCourseId={selectedCourseId}
+              selectedType={selectedType}
+              errors={{
+                courseId: errors.courseId?.message,
+                type: errors.type?.message
+              }}
+              onCourseChange={handleCourseChange}
+              onTypeChange={handleTypeChange}
+              onNext={handleCourseStepNext}
+            />
+          ) : null}
+          {currentStep === "applicant" ? (
+            <ApplicantStep
+              enrollmentType={getValues("type")}
+              onBack={handleApplicantStepBack}
+              onNext={handleApplicantStepNext}
+            />
+          ) : null}
+          {isApplicantStepReady ? (
+            <div className="next-step-notice" role="status">
+              수강생 정보 입력이 완료되었습니다. 다음 구현 단계에서 단체 신청
+              세부 정보와 확인 화면으로 연결됩니다.
+            </div>
+          ) : null}
+        </div>
+      </FormProvider>
     </main>
   );
 }

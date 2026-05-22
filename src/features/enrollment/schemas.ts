@@ -115,6 +115,14 @@ export const applicantStepSchema = z.discriminatedUnion("type", [
   groupApplicantStepSchema
 ]);
 
+export const enrollmentFormDraftSchema = z.object({
+  courseId: z.string(),
+  type: z.union([enrollmentTypeSchema, z.literal("")]),
+  applicant: applicantBaseSchema,
+  group: groupFieldsSchema.optional(),
+  agreedToTerms: z.boolean()
+});
+
 export const reviewStepSchema = z.object({
   agreedToTerms: z.literal(true, {
     error: "이용약관에 동의해 주세요."

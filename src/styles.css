@@ -308,6 +308,85 @@ button:disabled {
   color: #697586;
 }
 
+.form-panel {
+  display: grid;
+  gap: 24px;
+  max-width: 760px;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #d9e1e7;
+  border-radius: 8px;
+}
+
+.field-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field label {
+  color: #111827;
+  font-weight: 800;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #111827;
+  background: #ffffff;
+}
+
+.field input {
+  min-height: 46px;
+  padding: 0 14px;
+}
+
+.field textarea {
+  min-height: 136px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: #2f6f73;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(47, 111, 115, 0.12);
+}
+
+.field input[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
+  border-color: #d92d20;
+}
+
+.field-hint {
+  margin: 0;
+  color: #697586;
+  font-size: 0.9rem;
+}
+
+.step-note {
+  padding: 14px 16px;
+  color: #155e75;
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .primary-action {
   min-height: 48px;
   padding: 0 18px;
@@ -316,6 +395,23 @@ button:disabled {
   border: 0;
   border-radius: 8px;
   font-weight: 800;
+}
+
+.secondary-action {
+  min-height: 48px;
+  padding: 0 18px;
+  color: #1f2937;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.secondary-action:hover,
+.secondary-action:focus-visible {
+  border-color: #2f6f73;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(47, 111, 115, 0.12);
 }
 
 .primary-action:hover,
