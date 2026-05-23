@@ -1,14 +1,20 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, type FieldPath } from "react-hook-form";
 import StepIndicator from "../../components/StepIndicator";
-import { submitEnrollment } from "../../api/mockApi";
+import { getCourses, submitEnrollment } from "../../api/mockApi";
 import {
   courseStepSchema,
   enrollmentFormDraftSchema,
   enrollmentSubmissionSchema,
   reviewStepSchema
 } from "./schemas";
+import {
+  clearEnrollmentDraft,
+  hasEnrollmentDraftInput,
+  loadEnrollmentDraft,
+  saveEnrollmentDraft
+} from "./storage";
 import ApplicantStep from "./steps/ApplicantStep";
 import CompleteStep from "./steps/CompleteStep";
 import CourseStep from "./steps/CourseStep";
@@ -61,14 +67,17 @@ function isServerError(error: unknown): error is {
 }
 
 function EnrollmentPage() {
-  const [currentStep, setCurrentStep] = useState<EnrollmentStep>("course");
+  const savedEnrollmentDraft = useMemo(() => loadEnrollmentDraft(), []);
+  const [currentStep, setCurrentStep] = useState<EnrollmentStep>(
+    savedEnrollmentDraft?.currentStep ?? "course"
+  );
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [enrollmentResult, setEnrollmentResult] =
     useState<EnrollmentResponse | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const methods = useForm<EnrollmentFormDraft>({
-    defaultValues: initialDraft,
+    defaultValues: savedEnrollmentDraft?.draft ?? initialDraft,
     mode: "onBlur",
     reValidateMode: "onChange",
     resolver: zodResolver(enrollmentFormDraftSchema)
@@ -84,6 +93,83 @@ function EnrollmentPage() {
   } = methods;
   const selectedCourseId = watch("courseId");
   const selectedType = watch("type");
+  const draftValues = watch();
+  const shouldWarnBeforeUnload =
+    currentStep !== "complete" &&
+    hasEnrollmentDraftInput(draftValues, currentStep);
+
+  useEffect(() => {
+    if (!selectedCourseId) {
+      setSelectedCourse(null);
+      return;
+    }
+
+    let isActive = true;
+
+    getCourses()
+      .then(({ courses }) => {
+        if (!isActive) {
+          return;
+        }
+
+        const restoredCourse =
+          courses.find((course) => course.id === selectedCourseId) ?? null;
+
+        setSelectedCourse(restoredCourse);
+
+        if (!restoredCourse) {
+          setValue("courseId", "", {
+            shouldDirty: true,
+            shouldTouch: true,
+            shouldValidate: false
+          });
+          setCurrentStep("course");
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setCurrentStep("course");
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedCourseId, setValue]);
+
+  useEffect(() => {
+    if (currentStep === "complete") {
+      clearEnrollmentDraft();
+      return;
+    }
+
+    if (!hasEnrollmentDraftInput(draftValues, currentStep)) {
+      clearEnrollmentDraft();
+      return;
+    }
+
+    saveEnrollmentDraft({
+      currentStep,
+      draft: draftValues
+    });
+  }, [currentStep, draftValues]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!shouldWarnBeforeUnload) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [shouldWarnBeforeUnload]);
 
   const handleCourseChange = (course: Course) => {
     setSelectedCourse(course);
