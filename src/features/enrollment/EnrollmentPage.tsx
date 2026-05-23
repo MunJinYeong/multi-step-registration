@@ -1,20 +1,31 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, type FieldPath } from "react-hook-form";
 import StepIndicator from "../../components/StepIndicator";
-import { courseStepSchema, enrollmentFormDraftSchema } from "./schemas";
+import { submitEnrollment } from "../../api/mockApi";
+import {
+  courseStepSchema,
+  enrollmentFormDraftSchema,
+  enrollmentSubmissionSchema,
+  reviewStepSchema
+} from "./schemas";
 import ApplicantStep from "./steps/ApplicantStep";
+import CompleteStep from "./steps/CompleteStep";
 import CourseStep from "./steps/CourseStep";
+import ReviewStep from "./steps/ReviewStep";
 import type {
   Course,
+  EnrollmentErrorCode,
   EnrollmentFormDraft,
+  EnrollmentResponse,
   EnrollmentStep,
   EnrollmentType
 } from "./types";
 import {
   createDefaultGroupDraft,
   getRemainingCapacity,
-  hasGroupDraftInput
+  hasGroupDraftInput,
+  normalizeEnrollmentPayload
 } from "./utils";
 
 const initialDraft: EnrollmentFormDraft = {
@@ -29,10 +40,33 @@ const initialDraft: EnrollmentFormDraft = {
   agreedToTerms: false
 };
 
+const submitErrorMessage: Record<EnrollmentErrorCode, string> = {
+  COURSE_FULL:
+    "선택한 강의의 잔여 정원이 부족합니다. 강의 또는 인원수를 확인해 주세요.",
+  DUPLICATE_ENROLLMENT: "이미 신청된 강의입니다. 신청 내역을 확인해 주세요.",
+  INVALID_INPUT: "입력값을 다시 확인해 주세요."
+};
+
+function isServerError(error: unknown): error is {
+  code: EnrollmentErrorCode;
+  message: string;
+  details?: Record<string, string>;
+} {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    "message" in error
+  );
+}
+
 function EnrollmentPage() {
   const [currentStep, setCurrentStep] = useState<EnrollmentStep>("course");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [isApplicantStepReady, setIsApplicantStepReady] = useState(false);
+  const [enrollmentResult, setEnrollmentResult] =
+    useState<EnrollmentResponse | null>(null);
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const methods = useForm<EnrollmentFormDraft>({
     defaultValues: initialDraft,
     mode: "onBlur",
@@ -58,7 +92,7 @@ function EnrollmentPage() {
       shouldTouch: true,
       shouldValidate: true
     });
-    setIsApplicantStepReady(false);
+    setSubmitError("");
   };
 
   const handleTypeChange = (type: EnrollmentType) => {
@@ -99,7 +133,7 @@ function EnrollmentPage() {
       shouldTouch: true,
       shouldValidate: true
     });
-    setIsApplicantStepReady(false);
+    setSubmitError("");
   };
 
   const handleCourseStepNext = () => {
@@ -130,12 +164,12 @@ function EnrollmentPage() {
 
     clearErrors(["courseId", "type"]);
     setCurrentStep("applicant");
-    setIsApplicantStepReady(false);
+    setSubmitError("");
   };
 
   const handleApplicantStepBack = () => {
     setCurrentStep("course");
-    setIsApplicantStepReady(false);
+    setSubmitError("");
   };
 
   const handleApplicantStepNext = async () => {
@@ -157,7 +191,6 @@ function EnrollmentPage() {
     const isValid = await trigger(fieldsToValidate, { shouldFocus: true });
 
     if (!isValid) {
-      setIsApplicantStepReady(false);
       return;
     }
 
@@ -173,19 +206,104 @@ function EnrollmentPage() {
         type: "manual",
         message: "신청 인원수가 선택한 강의의 잔여 정원을 초과합니다."
       });
-      setIsApplicantStepReady(false);
       return;
     }
 
     clearErrors("group.headCount");
-    setIsApplicantStepReady(true);
+    setSubmitError("");
+    setCurrentStep("review");
+  };
+
+  const applyServerDetails = (details?: Record<string, string>) => {
+    if (!details) {
+      return;
+    }
+
+    Object.entries(details).forEach(([fieldName, message]) => {
+      setError(fieldName as FieldPath<EnrollmentFormDraft>, {
+        type: "server",
+        message
+      });
+    });
+  };
+
+  const handleReviewBack = () => {
+    setCurrentStep("applicant");
+    setSubmitError("");
+  };
+
+  const handleEditStep = (step: "course" | "applicant") => {
+    setCurrentStep(step);
+    setSubmitError("");
+  };
+
+  const handleSubmitEnrollment = async () => {
+    const termsResult = reviewStepSchema.safeParse({
+      agreedToTerms: getValues("agreedToTerms")
+    });
+
+    if (!termsResult.success) {
+      setError("agreedToTerms", {
+        type: "manual",
+        message:
+          termsResult.error.flatten().fieldErrors.agreedToTerms?.[0] ??
+          "이용약관에 동의해 주세요."
+      });
+      return;
+    }
+
+    let payload;
+
+    try {
+      payload = normalizeEnrollmentPayload(getValues());
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "제출 정보를 확인해 주세요."
+      );
+      return;
+    }
+
+    const submissionResult = enrollmentSubmissionSchema.safeParse(payload);
+
+    if (!submissionResult.success) {
+      submissionResult.error.issues.forEach((issue) => {
+        setError(issue.path.join(".") as FieldPath<EnrollmentFormDraft>, {
+          type: "manual",
+          message: issue.message
+        });
+      });
+      setSubmitError("입력값을 다시 확인해 주세요.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const response = await submitEnrollment(submissionResult.data);
+
+      setEnrollmentResult(response);
+      setCurrentStep("complete");
+    } catch (error) {
+      if (isServerError(error)) {
+        applyServerDetails(error.details);
+        setSubmitError(submitErrorMessage[error.code] ?? error.message);
+        return;
+      }
+
+      setSubmitError("신청 제출 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <main className="app-shell">
       <FormProvider {...methods}>
         <div className="app-container">
-          <StepIndicator currentStep={currentStep} />
+          {currentStep !== "complete" ? (
+            <StepIndicator currentStep={currentStep} />
+          ) : null}
           {currentStep === "course" ? (
             <CourseStep
               selectedCourse={selectedCourse}
@@ -207,11 +325,18 @@ function EnrollmentPage() {
               onNext={handleApplicantStepNext}
             />
           ) : null}
-          {isApplicantStepReady ? (
-            <div className="next-step-notice" role="status">
-              수강생 정보 입력이 완료되었습니다. 다음 구현 단계에서 단체 신청
-              세부 정보와 확인 화면으로 연결됩니다.
-            </div>
+          {currentStep === "review" && selectedCourse ? (
+            <ReviewStep
+              course={selectedCourse}
+              errorMessage={submitError}
+              isSubmitting={isSubmitting}
+              onBack={handleReviewBack}
+              onEditStep={handleEditStep}
+              onSubmit={handleSubmitEnrollment}
+            />
+          ) : null}
+          {currentStep === "complete" && selectedCourse && enrollmentResult ? (
+            <CompleteStep course={selectedCourse} result={enrollmentResult} />
           ) : null}
         </div>
       </FormProvider>

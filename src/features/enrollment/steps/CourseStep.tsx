@@ -8,6 +8,8 @@ import type {
   EnrollmentType
 } from "../types";
 import {
+  formatCurrency,
+  formatDateRange,
   getRemainingCapacity,
   isCourseAlmostFull,
   isCourseFull
@@ -32,25 +34,6 @@ const categoryLabels: Record<CourseCategory, string> = {
   marketing: "마케팅",
   business: "비즈니스"
 };
-
-function formatCurrency(price: number) {
-  return new Intl.NumberFormat("ko-KR", {
-    style: "currency",
-    currency: "KRW",
-    maximumFractionDigits: 0
-  }).format(price);
-}
-
-function formatDateRange(startDate: string, endDate: string) {
-  const formatter = new Intl.DateTimeFormat("ko-KR", {
-    month: "long",
-    day: "numeric"
-  });
-
-  return `${formatter.format(new Date(startDate))} - ${formatter.format(
-    new Date(endDate)
-  )}`;
-}
 
 function CourseStep({
   selectedCourse,

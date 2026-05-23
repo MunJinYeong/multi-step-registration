@@ -20,6 +20,32 @@ export function isCourseAlmostFull(course: Course) {
   return remainingCapacity > 0 && remainingCapacity <= 3;
 }
 
+export function formatCurrency(price: number) {
+  return new Intl.NumberFormat("ko-KR", {
+    style: "currency",
+    currency: "KRW",
+    maximumFractionDigits: 0
+  }).format(price);
+}
+
+export function formatDateRange(startDate: string, endDate: string) {
+  const formatter = new Intl.DateTimeFormat("ko-KR", {
+    month: "long",
+    day: "numeric"
+  });
+
+  return `${formatter.format(new Date(startDate))} - ${formatter.format(
+    new Date(endDate)
+  )}`;
+}
+
+export function formatDateTime(date: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(date));
+}
+
 export function createEmptyParticipant(): Participant {
   return {
     name: "",
