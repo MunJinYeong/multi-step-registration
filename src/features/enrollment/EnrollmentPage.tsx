@@ -53,6 +53,27 @@ const submitErrorMessage: Record<EnrollmentErrorCode, string> = {
   INVALID_INPUT: "입력값을 다시 확인해 주세요."
 };
 
+type HistoryEnrollmentStep = Extract<
+  EnrollmentStep,
+  "course" | "applicant" | "review"
+>;
+
+function isHistoryEnrollmentStep(step: unknown): step is HistoryEnrollmentStep {
+  return step === "course" || step === "applicant" || step === "review";
+}
+
+function getPreviousStep(step: EnrollmentStep): EnrollmentStep | null {
+  if (step === "review") {
+    return "applicant";
+  }
+
+  if (step === "applicant") {
+    return "course";
+  }
+
+  return null;
+}
+
 function isServerError(error: unknown): error is {
   code: EnrollmentErrorCode;
   message: string;
@@ -98,6 +119,25 @@ function EnrollmentPage() {
     currentStep !== "complete" &&
     hasEnrollmentDraftInput(draftValues, currentStep);
 
+  const goToStep = (
+    step: EnrollmentStep,
+    options: { replace?: boolean } = {}
+  ) => {
+    setCurrentStep(step);
+
+    if (step === "complete") {
+      return;
+    }
+
+    const historyMethod = options.replace ? "replaceState" : "pushState";
+
+    window.history[historyMethod](
+      { enrollmentStep: step },
+      "",
+      window.location.href
+    );
+  };
+
   useEffect(() => {
     if (!selectedCourseId) {
       setSelectedCourse(null);
@@ -123,12 +163,12 @@ function EnrollmentPage() {
             shouldTouch: true,
             shouldValidate: false
           });
-          setCurrentStep("course");
+          goToStep("course", { replace: true });
         }
       })
       .catch(() => {
         if (isActive) {
-          setCurrentStep("course");
+          goToStep("course", { replace: true });
         }
       });
 
@@ -170,6 +210,44 @@ function EnrollmentPage() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [shouldWarnBeforeUnload]);
+
+  useEffect(() => {
+    window.history.replaceState(
+      { enrollmentStep: currentStep === "complete" ? "review" : currentStep },
+      "",
+      window.location.href
+    );
+
+    const handlePopState = (event: PopStateEvent) => {
+      const step = event.state?.enrollmentStep;
+
+      if (isHistoryEnrollmentStep(step)) {
+        setCurrentStep(step);
+        setSubmitError("");
+        return;
+      }
+
+      const previousStep = getPreviousStep(currentStep);
+
+      if (!previousStep) {
+        return;
+      }
+
+      setCurrentStep(previousStep);
+      setSubmitError("");
+      window.history.replaceState(
+        { enrollmentStep: previousStep },
+        "",
+        window.location.href
+      );
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [currentStep]);
 
   const handleCourseChange = (course: Course) => {
     setSelectedCourse(course);
@@ -249,12 +327,12 @@ function EnrollmentPage() {
     }
 
     clearErrors(["courseId", "type"]);
-    setCurrentStep("applicant");
+    goToStep("applicant");
     setSubmitError("");
   };
 
   const handleApplicantStepBack = () => {
-    setCurrentStep("course");
+    goToStep("course");
     setSubmitError("");
   };
 
@@ -297,7 +375,7 @@ function EnrollmentPage() {
 
     clearErrors("group.headCount");
     setSubmitError("");
-    setCurrentStep("review");
+    goToStep("review");
   };
 
   const applyServerDetails = (details?: Record<string, string>) => {
@@ -314,12 +392,12 @@ function EnrollmentPage() {
   };
 
   const handleReviewBack = () => {
-    setCurrentStep("applicant");
+    goToStep("applicant");
     setSubmitError("");
   };
 
   const handleEditStep = (step: "course" | "applicant") => {
-    setCurrentStep(step);
+    goToStep(step);
     setSubmitError("");
   };
 
@@ -369,7 +447,7 @@ function EnrollmentPage() {
       const response = await submitEnrollment(submissionResult.data);
 
       setEnrollmentResult(response);
-      setCurrentStep("complete");
+      goToStep("complete");
     } catch (error) {
       if (isServerError(error)) {
         applyServerDetails(error.details);
