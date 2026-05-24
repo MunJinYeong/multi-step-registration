@@ -53,6 +53,20 @@ const submitErrorMessage: Record<EnrollmentErrorCode, string> = {
   INVALID_INPUT: "입력값을 다시 확인해 주세요."
 };
 
+const fieldFocusTargets: Partial<Record<FieldPath<EnrollmentFormDraft>, string>> =
+  {
+    courseId: ".course-card:not(:disabled)",
+    type: 'input[name="enrollment-type"]',
+    "applicant.name": "#applicant-name",
+    "applicant.email": "#applicant-email",
+    "applicant.phone": "#applicant-phone",
+    "applicant.motivation": "#applicant-motivation",
+    "group.organizationName": "#group-organization-name",
+    "group.headCount": "#group-head-count",
+    "group.contactPerson": "#group-contact-person",
+    agreedToTerms: "#agreed-to-terms"
+  };
+
 type HistoryEnrollmentStep = Extract<
   EnrollmentStep,
   "course" | "applicant" | "review"
@@ -72,6 +86,28 @@ function getPreviousStep(step: EnrollmentStep): EnrollmentStep | null {
   }
 
   return null;
+}
+
+function getFieldStep(fieldName: string): EnrollmentStep {
+  if (fieldName === "courseId" || fieldName === "type") {
+    return "course";
+  }
+
+  if (fieldName === "agreedToTerms") {
+    return "review";
+  }
+
+  return "applicant";
+}
+
+function getFieldFocusTarget(fieldName: string) {
+  if (fieldName.startsWith("group.participants.")) {
+    const [, , participantIndex, fieldKey] = fieldName.split(".");
+
+    return `#participant-${participantIndex}-${fieldKey}`;
+  }
+
+  return fieldFocusTargets[fieldName as FieldPath<EnrollmentFormDraft>];
 }
 
 function isServerError(error: unknown): error is {
@@ -97,6 +133,9 @@ function EnrollmentPage() {
     useState<EnrollmentResponse | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingFocusField, setPendingFocusField] = useState<string | null>(
+    null
+  );
   const methods = useForm<EnrollmentFormDraft>({
     defaultValues: savedEnrollmentDraft?.draft ?? initialDraft,
     mode: "onBlur",
@@ -249,6 +288,45 @@ function EnrollmentPage() {
     };
   }, [currentStep]);
 
+  useEffect(() => {
+    if (!pendingFocusField) {
+      return;
+    }
+
+    const targetSelector = getFieldFocusTarget(pendingFocusField);
+
+    if (!targetSelector) {
+      setPendingFocusField(null);
+      return;
+    }
+
+    window.setTimeout(() => {
+      const targetElement = document.querySelector<HTMLElement>(targetSelector);
+
+      if (!targetElement) {
+        setPendingFocusField(null);
+        return;
+      }
+
+      targetElement.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      targetElement.focus({ preventScroll: true });
+      setPendingFocusField(null);
+    }, 0);
+  }, [currentStep, pendingFocusField]);
+
+  const moveToField = (fieldName: string) => {
+    const targetStep = getFieldStep(fieldName);
+
+    if (targetStep !== currentStep) {
+      goToStep(targetStep);
+    }
+
+    setPendingFocusField(fieldName);
+  };
+
   const handleCourseChange = (course: Course) => {
     setSelectedCourse(course);
     setValue("courseId", course.id, {
@@ -323,6 +401,7 @@ function EnrollmentPage() {
         });
       }
 
+      moveToField(fieldErrors.courseId?.[0] ? "courseId" : "type");
       return;
     }
 
@@ -370,6 +449,7 @@ function EnrollmentPage() {
         type: "manual",
         message: "신청 인원수가 선택한 강의의 잔여 정원을 초과합니다."
       });
+      moveToField("group.headCount");
       return;
     }
 
@@ -380,15 +460,19 @@ function EnrollmentPage() {
 
   const applyServerDetails = (details?: Record<string, string>) => {
     if (!details) {
-      return;
+      return null;
     }
 
-    Object.entries(details).forEach(([fieldName, message]) => {
+    const detailEntries = Object.entries(details);
+
+    detailEntries.forEach(([fieldName, message]) => {
       setError(fieldName as FieldPath<EnrollmentFormDraft>, {
         type: "server",
         message
       });
     });
+
+    return detailEntries[0]?.[0] ?? null;
   };
 
   const handleReviewBack = () => {
@@ -413,6 +497,7 @@ function EnrollmentPage() {
           termsResult.error.flatten().fieldErrors.agreedToTerms?.[0] ??
           "이용약관에 동의해 주세요."
       });
+      moveToField("agreedToTerms");
       return;
     }
 
@@ -430,13 +515,22 @@ function EnrollmentPage() {
     const submissionResult = enrollmentSubmissionSchema.safeParse(payload);
 
     if (!submissionResult.success) {
+      const firstIssuePath = submissionResult.error.issues[0]?.path.join(".");
+
       submissionResult.error.issues.forEach((issue) => {
-        setError(issue.path.join(".") as FieldPath<EnrollmentFormDraft>, {
+        const fieldName = issue.path.join(".");
+
+        setError(fieldName as FieldPath<EnrollmentFormDraft>, {
           type: "manual",
           message: issue.message
         });
       });
       setSubmitError("입력값을 다시 확인해 주세요.");
+
+      if (firstIssuePath) {
+        moveToField(firstIssuePath);
+      }
+
       return;
     }
 
@@ -450,8 +544,14 @@ function EnrollmentPage() {
       goToStep("complete");
     } catch (error) {
       if (isServerError(error)) {
-        applyServerDetails(error.details);
+        const firstServerErrorField = applyServerDetails(error.details);
+
         setSubmitError(submitErrorMessage[error.code] ?? error.message);
+
+        if (firstServerErrorField) {
+          moveToField(firstServerErrorField);
+        }
+
         return;
       }
 
