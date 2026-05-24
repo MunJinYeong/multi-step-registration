@@ -18,6 +18,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 button,
@@ -101,6 +102,12 @@ button:disabled {
   box-shadow: 0 0 0 3px rgba(47, 111, 115, 0.12);
 }
 
+.step-indicator__item[data-state="complete"] {
+  color: #17635f;
+  border-color: #9cc9c6;
+  background: #f0fdfa;
+}
+
 .step-indicator__number {
   display: grid;
   flex: 0 0 28px;
@@ -114,6 +121,10 @@ button:disabled {
 }
 
 .step-indicator__item[data-state="current"] .step-indicator__number {
+  background: #2f6f73;
+}
+
+.step-indicator__item[data-state="complete"] .step-indicator__number {
   background: #2f6f73;
 }
 
@@ -185,10 +196,12 @@ button:disabled {
 .course-card strong {
   color: #111827;
   font-size: 1.15rem;
+  overflow-wrap: anywhere;
 }
 
 .course-card span {
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .course-card__topline,
@@ -264,6 +277,7 @@ button:disabled {
 .summary-list dd {
   margin: 0;
   color: #111827;
+  overflow-wrap: anywhere;
 }
 
 .enrollment-type {
@@ -311,11 +325,16 @@ button:disabled {
 .form-panel {
   display: grid;
   gap: 24px;
+  width: 100%;
   max-width: 760px;
   padding: 24px;
   background: #ffffff;
   border: 1px solid #d9e1e7;
   border-radius: 8px;
+}
+
+.applicant-step .form-panel {
+  max-width: 860px;
 }
 
 .field-grid {
@@ -457,6 +476,7 @@ button:disabled {
 
 .primary-action {
   min-height: 48px;
+  min-width: 112px;
   padding: 0 18px;
   color: #ffffff;
   background: #2f6f73;
@@ -467,6 +487,7 @@ button:disabled {
 
 .secondary-action {
   min-height: 48px;
+  min-width: 112px;
   padding: 0 18px;
   color: #1f2937;
   background: #ffffff;
@@ -486,6 +507,10 @@ button:disabled {
 .primary-action:focus-visible {
   background: #245b5f;
   outline: none;
+}
+
+.primary-action:disabled {
+  background: #8bb7ba;
 }
 
 .text-action {
@@ -508,6 +533,7 @@ button:disabled {
 .review-grid {
   display: grid;
   gap: 16px;
+  width: 100%;
   max-width: 860px;
 }
 
@@ -564,6 +590,10 @@ button:disabled {
   border-radius: 8px;
 }
 
+.participant-summary span {
+  overflow-wrap: anywhere;
+}
+
 .participant-summary span:first-child {
   color: #111827;
   font-weight: 800;
@@ -582,6 +612,7 @@ button:disabled {
   gap: 10px;
   color: #111827;
   font-weight: 800;
+  line-height: 1.5;
 }
 
 .terms-check input {
@@ -714,6 +745,12 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .form-panel,
+  .review-grid,
+  .submit-panel {
+    max-width: none;
+  }
+
   .complete-meta {
     grid-template-columns: 1fr;
   }
@@ -728,12 +765,32 @@ button:disabled {
     padding: 14px;
   }
 
+  .section-heading {
+    margin: 24px 0 20px;
+  }
+
   .section-heading h1 {
     font-size: 1.7rem;
   }
 
+  .section-heading p:last-child {
+    font-size: 1rem;
+  }
+
+  .step-indicator {
+    gap: 6px;
+  }
+
   .step-indicator__item {
     min-height: 48px;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+  }
+
+  .step-indicator__number {
+    flex-basis: 26px;
+    width: 26px;
+    height: 26px;
   }
 
   .category-tabs {
@@ -745,6 +802,15 @@ button:disabled {
     width: 100%;
   }
 
+  .course-card,
+  .selected-panel,
+  .form-panel,
+  .review-card,
+  .submit-panel,
+  .complete-hero {
+    padding: 18px;
+  }
+
   .summary-list div {
     grid-template-columns: 1fr;
     gap: 4px;
@@ -752,6 +818,7 @@ button:disabled {
 
   .participant-card {
     grid-template-columns: 1fr;
+    padding: 14px;
   }
 
   .review-card__header {
@@ -765,5 +832,23 @@ button:disabled {
 
   .text-action {
     width: 100%;
+  }
+
+  .step-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .primary-action,
+  .secondary-action {
+    width: 100%;
+  }
+
+  .count-stepper {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+
+  .complete-hero h1 {
+    font-size: 1.8rem;
   }
 }
